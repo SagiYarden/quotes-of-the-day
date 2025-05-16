@@ -27,60 +27,60 @@ export class QuotesService {
     page = 1,
     perPage = 25
   ): Promise<PaginatedResponse<Quote>> {
-    // First, check if we have enough quotes cached already
-    const cacheKey = `all_random_quotes_${perPage}`;
+    // 1. Use a more consistent cache key without timestamps
+    const cacheKey = `quotes_c${count}_p${perPage}`;
     let allQuotes = await this.cache.get<Quote[]>(cacheKey);
 
-    // If we don't have quotes cached, or need more, fetch them
     if (!allQuotes || allQuotes.length < count) {
-      // Calculate how many batches we need - add extra to account for potential duplicates
-      const batchesNeeded = Math.ceil(count / perPage) + 1;
+      // 2. Pre-allocate arrays and sets for better performance
       const fetchedQuotes: Quote[] = [];
       const seenIds = new Set<number | string>();
+      const batchesNeeded = Math.ceil(count / perPage) + 1;
 
-      // Fetch multiple batches of random quotes (always page 1)
+      // 3. Use Promise.all to fetch batches in parallel (with rate limiting)
+      const batchPromises = [];
       for (let i = 0; i < batchesNeeded; i++) {
-        const batchKey = `random_batch_${i}_${perPage}_${Date.now()}`;
-        let batchQuotes = await this.cache.get<Quote[]>(batchKey);
+        // 4. Use stable cache keys for batch quotes
+        const batchKey = `quote_batch_${i}_${perPage}`;
+        const batchQuotes = await this.cache.get<Quote[]>(batchKey);
 
         if (!batchQuotes) {
-          // Increase delay between requests to reduce chance of duplicates
-          if (i > 0) {
-            await new Promise((r) => setTimeout(r, 500)); // Increased from 200ms
-          }
-
-          batchQuotes = await this.fetchQuotesWithRetry(1, perPage);
-
-          // Cache each batch separately (1 hour)
-          await this.cache.set(batchKey, batchQuotes, 3600);
-        }
-
-        // Only add non-duplicate quotes
-        for (const quote of batchQuotes) {
-          if (!seenIds.has(quote.id)) {
-            seenIds.add(quote.id);
-            fetchedQuotes.push(quote);
-          }
-        }
-
-        // If we have enough unique quotes, stop fetching
-        if (fetchedQuotes.length >= count) {
-          break;
+          // 5. Delay only the API calls, not the entire operation
+          const delay = i * 300;
+          batchPromises.push(
+            this.delayedFetch(i, perPage, delay).then((quotes) => {
+              // Cache each batch with stable key
+              this.cache.set(batchKey, quotes);
+              return quotes;
+            })
+          );
+        } else {
+          batchPromises.push(Promise.resolve(batchQuotes));
         }
       }
 
-      // Store unique quotes
+      // Wait for all batches and process results
+      const batchResults = await Promise.all(batchPromises);
+      for (const batch of batchResults) {
+        for (const quote of batch) {
+          if (!seenIds.has(quote.id)) {
+            seenIds.add(quote.id);
+            fetchedQuotes.push(quote);
+            if (fetchedQuotes.length >= count) break;
+          }
+        }
+        if (fetchedQuotes.length >= count) break;
+      }
+
       allQuotes = fetchedQuotes;
-      // Cache the combined result (shorter time since it's derived)
-      await this.cache.set(cacheKey, allQuotes, 1800);
+      await this.cache.set(cacheKey, allQuotes);
     }
 
-    // Rest of the code stays the same...
+    // Client-side pagination - unchanged
     const totalPages = Math.ceil(Math.min(allQuotes.length, count) / perPage);
     const startIndex = (page - 1) * perPage;
     const endIndex = Math.min(startIndex + perPage, count, allQuotes.length);
 
-    // No more quotes if we're past the last page
     if (page > totalPages) {
       return {
         items: [],
@@ -104,6 +104,24 @@ export class QuotesService {
           page * perPage < Math.min(count, allQuotes.length),
       },
     };
+  }
+
+  /**
+   * Fetch quotes with a delay to avoid hitting the API rate limit.
+   * @param page The page number to fetch.
+   * @param perPage The number of quotes per page.
+   * @param delayMs The delay in milliseconds before fetching.
+   * @returns A promise that resolves to an array of quotes.
+   */
+  private async delayedFetch(
+    page: number,
+    perPage: number,
+    delayMs: number
+  ): Promise<Quote[]> {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return this.fetchQuotesWithRetry(1, perPage);
   }
 
   /**

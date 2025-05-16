@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Grid, Typography, Button, Input } from '@mui/material';
+import { Box, Grid, Typography, Button, Input, Skeleton } from '@mui/material';
 import { usePaginatedQuotes } from '../hooks/use-paginated-quotes';
 import { QuoteCard } from '../ui/quote-card';
 
@@ -101,7 +101,7 @@ export const Home = () => {
         />
         <Button
           onClick={() => {
-            if (paginationCount !== quotesCount) {
+            if (paginationCount !== quotesCount && quotesCount > 0) {
               setPaginationCount(quotesCount);
               reset();
             }
@@ -135,6 +135,20 @@ export const Home = () => {
           </Grid>
         ))}
       </Grid>
+      {/* Add skeleton loader here - shows only during initial load */}
+      {loading && quotes.length === 0 && (
+        <Grid container spacing={2}>
+          {[...Array(6)].map((_, i) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+              <Skeleton
+                variant="rectangular"
+                height={180}
+                sx={{ borderRadius: 1 }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      )}
       <Box sx={{ mb: 6 }}>
         {loading && (
           <Typography textAlign="center" mt={2}>
