@@ -14,14 +14,6 @@
 
 ---
 
-### Prerequisites
-
-- Node.js ≥14
-- npm (or npx)
-- A free API key from FavQs
-
----
-
 ### 1. Install dependencies
 
 From the repo root:
