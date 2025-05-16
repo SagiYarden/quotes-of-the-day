@@ -7,6 +7,7 @@ export const Home = () => {
   const [quotesCount, setQuotesCount] = useState(12);
   const [paginationCount, setPaginationCount] = useState(quotesCount);
   const [filterTag, setFilterTag] = useState('');
+  const [appliedFilterTag, setAppliedFilterTag] = useState('');
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
   
   const {
@@ -17,6 +18,27 @@ export const Home = () => {
     loadMore,
     reset,
   } = usePaginatedQuotes({ count: paginationCount, tag: filterTag });
+
+    const handleGetQuotes = () => {
+    let shouldReset = false;
+    
+    // Reset when count changes
+    if (paginationCount !== quotesCount && quotesCount > 0) {
+      setPaginationCount(quotesCount);
+      shouldReset = true;
+    }
+    
+    // Reset when tag changes (including when cleared)
+    if (filterTag !== appliedFilterTag) {
+      setAppliedFilterTag(filterTag);
+      shouldReset = true;
+    }
+    
+    if (shouldReset) {
+      reset();
+    }
+  };
+
 
   useEffect(() => {
     // Don't set up observer if there are no more quotes
@@ -37,6 +59,7 @@ export const Home = () => {
       }
     );
 
+    
     const currentRef = loadMoreTriggerRef.current;
     observer.observe(currentRef);
 
@@ -138,15 +161,7 @@ export const Home = () => {
         }}>
          <Button
           variant="contained"
-          onClick={() => {
-            if (paginationCount !== quotesCount && quotesCount > 0) {
-              setPaginationCount(quotesCount);
-              reset();
-            }
-            if(filterTag !== '') {
-              reset();
-            }
-          }}
+          onClick={handleGetQuotes}
         >
           Get Quotes
         </Button>
