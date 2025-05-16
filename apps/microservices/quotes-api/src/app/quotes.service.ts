@@ -9,6 +9,7 @@ import { PaginatedResponse, Quote } from '@monorepo/quotes-interfaces';
 export class QuotesService {
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY = 1000; // ms
+  private readonly CACHE_TTL = 86400; // 24 hours
 
   constructor(
     private readonly configService: ConfigService,
@@ -16,71 +17,85 @@ export class QuotesService {
   ) {}
 
   /**
-   * Get quotes from favqs.com
+   * Get quotes from favqs.com with optional tag filtering
    * @param count number of quotes to get
    * @param page page number to get
    * @param perPage number of quotes per page
+   * @param tag optional tag to filter quotes by
    * @returns array of quotes with pagination info
    */
   async getQuotes(
     count: number,
     page = 1,
-    perPage = 25
+    perPage = 25,
+    tag?: string
   ): Promise<PaginatedResponse<Quote>> {
-    // First, check if we have enough quotes cached already
-    const cacheKey = `all_random_quotes_${perPage}`;
+    // Use different cache keys for random vs tag-filtered quotes
+    const cacheKey = tag
+      ? `quotes_tag_${tag}_c${count}_p${perPage}`
+      : `quotes_c${count}_p${perPage}`;
+
     let allQuotes = await this.cache.get<Quote[]>(cacheKey);
 
-    // If we don't have quotes cached, or need more, fetch them
     if (!allQuotes || allQuotes.length < count) {
-      // Calculate how many batches we need - add extra to account for potential duplicates
-      const batchesNeeded = Math.ceil(count / perPage) + 1;
       const fetchedQuotes: Quote[] = [];
       const seenIds = new Set<number | string>();
 
-      // Fetch multiple batches of random quotes (always page 1)
+      // For tagged quotes, we might need more batches since there might be fewer quotes per tag
+      const batchesNeeded = tag
+        ? Math.ceil(count / perPage) + 2
+        : Math.ceil(count / perPage) + 1;
+
+      const batchPromises = [];
       for (let i = 0; i < batchesNeeded; i++) {
-        const batchKey = `random_batch_${i}_${perPage}_${Date.now()}`;
-        let batchQuotes = await this.cache.get<Quote[]>(batchKey);
+        // For tag-based searches, use actual pagination (i+1)
+        // For random quotes, always use page=1 since random doesn't support pagination
+        const batchPage = tag ? i + 1 : 1;
+
+        // Use different cache keys for different types of batches
+        const batchKey = tag
+          ? `quote_tag_${tag}_batch_${batchPage}_${perPage}`
+          : `quote_batch_${i}_${perPage}`;
+
+        const batchQuotes = await this.cache.get<Quote[]>(batchKey);
 
         if (!batchQuotes) {
-          // Increase delay between requests to reduce chance of duplicates
-          if (i > 0) {
-            await new Promise((r) => setTimeout(r, 500)); // Increased from 200ms
-          }
-
-          batchQuotes = await this.fetchQuotesWithRetry(1, perPage);
-
-          // Cache each batch separately (1 hour)
-          await this.cache.set(batchKey, batchQuotes, 3600);
-        }
-
-        // Only add non-duplicate quotes
-        for (const quote of batchQuotes) {
-          if (!seenIds.has(quote.id)) {
-            seenIds.add(quote.id);
-            fetchedQuotes.push(quote);
-          }
-        }
-
-        // If we have enough unique quotes, stop fetching
-        if (fetchedQuotes.length >= count) {
-          break;
+          // Add progressive delay to avoid rate limits
+          const delay = i * 300;
+          batchPromises.push(
+            this.delayedFetch(batchPage, perPage, delay, tag).then((quotes) => {
+              // Cache each batch separately
+              this.cache.set(batchKey, quotes, this.CACHE_TTL);
+              return quotes;
+            })
+          );
+        } else {
+          batchPromises.push(Promise.resolve(batchQuotes));
         }
       }
 
-      // Store unique quotes
+      // Process all batches and deduplicate quotes
+      const batchResults = await Promise.all(batchPromises);
+      for (const batch of batchResults) {
+        for (const quote of batch) {
+          if (!seenIds.has(quote.id)) {
+            seenIds.add(quote.id);
+            fetchedQuotes.push(quote);
+            if (fetchedQuotes.length >= count) break;
+          }
+        }
+        if (fetchedQuotes.length >= count) break;
+      }
+
       allQuotes = fetchedQuotes;
-      // Cache the combined result (shorter time since it's derived)
-      await this.cache.set(cacheKey, allQuotes, 1800);
+      await this.cache.set(cacheKey, allQuotes, this.CACHE_TTL);
     }
 
-    // Rest of the code stays the same...
+    // Client-side pagination - same logic for both random and tag filtering
     const totalPages = Math.ceil(Math.min(allQuotes.length, count) / perPage);
     const startIndex = (page - 1) * perPage;
     const endIndex = Math.min(startIndex + perPage, count, allQuotes.length);
 
-    // No more quotes if we're past the last page
     if (page > totalPages) {
       return {
         items: [],
@@ -107,34 +122,67 @@ export class QuotesService {
   }
 
   /**
+   * Fetch quotes with a delay to avoid hitting the API rate limit.
+   * @param page The page number to fetch.
+   * @param perPage The number of quotes per page.
+   * @param delayMs The delay in milliseconds before fetching.
+   * @param tag Optional tag to filter quotes by.
+   * @returns A promise that resolves to an array of quotes.
+   */
+  private async delayedFetch(
+    page: number,
+    perPage: number,
+    delayMs: number,
+    tag?: string
+  ): Promise<Quote[]> {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return this.fetchQuotesWithRetry(page, perPage, 0, tag);
+  }
+
+  /**
    * Fetch quotes from the API with retry logic for rate limiting and server errors.
    * @param page The page number to fetch.
    * @param perPage The number of quotes per page.
    * @param retries The current retry count.
+   * @param tag Optional tag to filter quotes by.
    * @returns A promise that resolves to an array of quotes.
    */
   private async fetchQuotesWithRetry(
     page: number,
     perPage: number,
-    retries = 0
+    retries = 0,
+    tag?: string
   ): Promise<Quote[]> {
     try {
       const url = this.configService.get<string>('FAVQS_API_URL');
       const token = this.configService.get<string>('FAVQS_API_KEY');
+
+      // Build params object based on whether we're filtering by tag or fetching random
+      const params: Record<string, string | number> = {
+        page,
+        per_page: perPage,
+        filter: tag || 'random',
+      };
+
+      if (tag) {
+        params.type = 'tag';
+      }
+
       const res = await axios.get(`${url}/quotes`, {
-        params: { page, filter: 'random', per_page: perPage },
         headers: { Authorization: `Token token=${token}` },
+        params,
       });
+
       return res.data.quotes as Quote[];
     } catch (e: any) {
       const status = e?.response?.status;
       if ((status === 429 || status === 503) && retries < this.MAX_RETRIES) {
         // Exponential backoff for rate limiting and server errors
-        // Retry after a delay
-        // The delay increases exponentially with each retry
         const delay = this.RETRY_DELAY * Math.pow(2, retries);
         await new Promise((r) => setTimeout(r, delay));
-        return this.fetchQuotesWithRetry(page, perPage, retries + 1);
+        return this.fetchQuotesWithRetry(page, perPage, retries + 1, tag);
       }
       throw e;
     }

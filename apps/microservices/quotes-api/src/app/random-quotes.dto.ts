@@ -1,7 +1,7 @@
 import { IsInt, Min, Max, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class RandomQuotesDto {
+export class QuotesListDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -21,4 +21,8 @@ export class RandomQuotesDto {
   @Max(50, { message: 'pageSize cannot exceed 50' })
   @IsOptional()
   pageSize?: number = 25;
+
+  @Type(() => String)
+  @IsOptional()
+  tag?: string;
 }

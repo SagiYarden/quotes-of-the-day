@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Grid, Typography, Button, Input } from '@mui/material';
+import { Box, Grid, Typography, Button, Input, Skeleton } from '@mui/material';
 import { usePaginatedQuotes } from '../hooks/use-paginated-quotes';
 import { QuoteCard } from '../ui/quote-card';
 
 export const Home = () => {
   const [quotesCount, setQuotesCount] = useState(12);
   const [paginationCount, setPaginationCount] = useState(quotesCount);
+  const [filterTag, setFilterTag] = useState('');
+  const [appliedFilterTag, setAppliedFilterTag] = useState('');
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
   const {
@@ -15,7 +17,27 @@ export const Home = () => {
     hasMore,
     loadMore,
     reset,
-  } = usePaginatedQuotes({ count: paginationCount });
+  } = usePaginatedQuotes({ count: paginationCount, tag: filterTag });
+
+  const handleGetQuotes = () => {
+    let shouldReset = false;
+
+    // Reset when count changes
+    if (paginationCount !== quotesCount && quotesCount > 0) {
+      setPaginationCount(quotesCount);
+      shouldReset = true;
+    }
+
+    // Reset when tag changes (including when cleared)
+    if (filterTag !== appliedFilterTag) {
+      setAppliedFilterTag(filterTag);
+      shouldReset = true;
+    }
+
+    if (shouldReset) {
+      reset();
+    }
+  };
 
   useEffect(() => {
     // Don't set up observer if there are no more quotes
@@ -45,14 +67,15 @@ export const Home = () => {
   }, [hasMore, loadMore]);
 
   return (
-    <Box sx={{ my: 4, width: '100%' }}>
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ textAlign: 'center', mb: 2 }}>
         <Typography
           variant="h3"
           gutterBottom
           fontWeight="bold"
           sx={{
             fontSize: { xs: '2rem', sm: '3rem', md: '3.5rem' },
+            mb: 1,
           }}
         >
           Random Quotes
@@ -62,10 +85,34 @@ export const Home = () => {
         </Typography>
       </Box>
 
+      {/* Tag Input */}
+      <Box
+        sx={{
+          textAlign: 'center',
+          display: 'flex',
+          gap: 2,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Typography variant="h6">
+          Which tag would you like to see quotes from?
+        </Typography>
+        <Input
+          placeholder="Filter Tag"
+          value={filterTag}
+          type="text"
+          sx={{ maxWidth: 100 }}
+          onChange={(e) => {
+            setFilterTag(e.target.value);
+          }}
+        />
+      </Box>
+
       {/* Quotes Input */}
       <Box
         sx={{
-          mb: 4,
+          mb: 2,
           textAlign: 'center',
           display: 'flex',
           gap: 2,
@@ -99,17 +146,22 @@ export const Home = () => {
             }
           }}
         />
-        <Button
-          onClick={() => {
-            if (paginationCount !== quotesCount) {
-              setPaginationCount(quotesCount);
-              reset();
-            }
-          }}
-        >
+      </Box>
+      <Box
+        sx={{
+          mb: 4,
+          textAlign: 'center',
+          display: 'flex',
+          gap: 2,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Button variant="contained" onClick={handleGetQuotes}>
           Get Quotes
         </Button>
       </Box>
+
       {/* Error Fetching */}
       {error && (
         <Box sx={{ mb: 4, textAlign: 'center' }}>
@@ -135,6 +187,20 @@ export const Home = () => {
           </Grid>
         ))}
       </Grid>
+      {/* Add skeleton loader here - shows only during initial load */}
+      {loading && quotes.length === 0 && (
+        <Grid container spacing={2}>
+          {[...Array(6)].map((_, i) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+              <Skeleton
+                variant="rectangular"
+                height={180}
+                sx={{ borderRadius: 1 }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      )}
       <Box sx={{ mb: 6 }}>
         {loading && (
           <Typography textAlign="center" mt={2}>

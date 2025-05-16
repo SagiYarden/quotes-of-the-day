@@ -6,15 +6,20 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { QuotesService } from './quotes.service';
-import { RandomQuotesDto } from './random-quotes.dto';
+import { QuotesListDto } from './random-quotes.dto';
 
 @Controller('quotes')
 export class AppController {
   constructor(private readonly quotesService: QuotesService) {}
 
-  @Get('random-list')
+  @Get('list')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-  async getQuotes(@Query() dto: RandomQuotesDto) {
-    return this.quotesService.getQuotes(dto.count, dto.page, dto.pageSize);
+  async getQuotes(@Query() dto: QuotesListDto) {
+    return this.quotesService.getQuotes(
+      dto.count,
+      dto.page,
+      dto.pageSize,
+      dto.tag
+    );
   }
 }
