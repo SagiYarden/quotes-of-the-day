@@ -1,0 +1,9 @@
+{
+  "name": "quotes-interfaces",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/quotes/interfaces/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project quotes-interfaces --web",
+  "targets": {}
+}

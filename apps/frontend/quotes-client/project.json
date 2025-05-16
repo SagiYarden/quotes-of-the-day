@@ -1,0 +1,9 @@
+{
+  "name": "quotes-client",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/frontend/quotes-client/src",
+  "projectType": "application",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project quotes-client --web",
+  "targets": {}
+}

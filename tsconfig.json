@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/microservices/quotes-api"
+    },
+    {
+      "path": "./apps/frontend/quotes-client"
+    },
+    {
+      "path": "./libs/quotes/interfaces"
+    }
+  ]
+}
