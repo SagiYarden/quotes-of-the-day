@@ -46,19 +46,20 @@ export const Home = () => {
   }, [hasMore, loadMore]);
 
   return (
-    <Box sx={{ my: 4, width: '100%' }}>
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
+    <Box sx={{ width: '100%' }}> 
+      <Box sx={{ textAlign: 'center', mb: 2 }}>
         <Typography
           variant="h3"
           gutterBottom
           fontWeight="bold"
           sx={{
             fontSize: { xs: '2rem', sm: '3rem', md: '3.5rem' },
+            mb: 1,
           }}
         >
           Random Quotes
         </Typography>
-        <Typography variant="h6" color="text.secondary">
+        <Typography variant="h6" color="text.secondary" >
           Stay updated with the latest quotes.
         </Typography>
       </Box>
@@ -66,7 +67,6 @@ export const Home = () => {
       {/* Tag Input */}
       <Box
         sx={{
-          mb: 4,
           textAlign: 'center',
           display: 'flex',
           gap: 2,
@@ -91,7 +91,7 @@ export const Home = () => {
       {/* Quotes Input */}
       <Box
         sx={{
-          mb: 4,
+          mb: 2,
           textAlign: 'center',
           display: 'flex',
           gap: 2,
