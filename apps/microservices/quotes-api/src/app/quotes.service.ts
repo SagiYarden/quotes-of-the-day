@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import axios from 'axios';
-import { Quote } from '@monorepo/quotes-interfaces';
+import { PaginatedResponse, Quote } from '@monorepo/quotes-interfaces';
 
 @Injectable()
 export class QuotesService {
@@ -20,32 +20,90 @@ export class QuotesService {
    * @param count number of quotes to get
    * @param page page number to get
    * @param perPage number of quotes per page
-   * @returns array of quotes
+   * @returns array of quotes with pagination info
    */
-  async getQuotes(count: number, page = 1, perPage = 25): Promise<Quote[]> {
-    const totalPages = Math.ceil(count / perPage);
+  async getQuotes(
+    count: number,
+    page = 1,
+    perPage = 25
+  ): Promise<PaginatedResponse<Quote>> {
+    // First, check if we have enough quotes cached already
+    const cacheKey = `all_random_quotes_${perPage}`;
+    let allQuotes = await this.cache.get<Quote[]>(cacheKey);
 
-    // if we've already gone past the max pages, no more quotes
+    // If we don't have quotes cached, or need more, fetch them
+    if (!allQuotes || allQuotes.length < count) {
+      // Calculate how many batches we need - add extra to account for potential duplicates
+      const batchesNeeded = Math.ceil(count / perPage) + 1;
+      const fetchedQuotes: Quote[] = [];
+      const seenIds = new Set<number | string>();
+
+      // Fetch multiple batches of random quotes (always page 1)
+      for (let i = 0; i < batchesNeeded; i++) {
+        const batchKey = `random_batch_${i}_${perPage}_${Date.now()}`;
+        let batchQuotes = await this.cache.get<Quote[]>(batchKey);
+
+        if (!batchQuotes) {
+          // Increase delay between requests to reduce chance of duplicates
+          if (i > 0) {
+            await new Promise((r) => setTimeout(r, 500)); // Increased from 200ms
+          }
+
+          batchQuotes = await this.fetchQuotesWithRetry(1, perPage);
+
+          // Cache each batch separately (1 hour)
+          await this.cache.set(batchKey, batchQuotes, 3600);
+        }
+
+        // Only add non-duplicate quotes
+        for (const quote of batchQuotes) {
+          if (!seenIds.has(quote.id)) {
+            seenIds.add(quote.id);
+            fetchedQuotes.push(quote);
+          }
+        }
+
+        // If we have enough unique quotes, stop fetching
+        if (fetchedQuotes.length >= count) {
+          break;
+        }
+      }
+
+      // Store unique quotes
+      allQuotes = fetchedQuotes;
+      // Cache the combined result (shorter time since it's derived)
+      await this.cache.set(cacheKey, allQuotes, 1800);
+    }
+
+    // Rest of the code stays the same...
+    const totalPages = Math.ceil(Math.min(allQuotes.length, count) / perPage);
+    const startIndex = (page - 1) * perPage;
+    const endIndex = Math.min(startIndex + perPage, count, allQuotes.length);
+
+    // No more quotes if we're past the last page
     if (page > totalPages) {
-      return [];
+      return {
+        items: [],
+        pagination: {
+          page,
+          pageSize: perPage,
+          totalRequested: count,
+          hasMore: false,
+        },
+      };
     }
 
-    // cache per (count,page,perPage) so last‐page slices still obey cache
-    const cacheKey = `q_cnt${count}_pg${page}_pp${perPage}`;
-    let pageQuotes = await this.cache.get<Quote[]>(cacheKey);
-
-    if (!pageQuotes) {
-      pageQuotes = await this.fetchQuotesWithRetry(page, perPage);
-      await this.cache.set(cacheKey, pageQuotes);
-    }
-
-    // calculate how many items this page is actually allowed to return
-    // this is to ensure we never exceed the global `count` cap as requested in step 1.
-    const alreadyReturned = (page - 1) * perPage;
-    const remaining = count - alreadyReturned;
-    const take = Math.min(perPage, remaining);
-
-    return pageQuotes.slice(0, take);
+    return {
+      items: allQuotes.slice(startIndex, endIndex),
+      pagination: {
+        page,
+        pageSize: perPage,
+        totalRequested: count,
+        hasMore:
+          page < totalPages &&
+          page * perPage < Math.min(count, allQuotes.length),
+      },
+    };
   }
 
   /**

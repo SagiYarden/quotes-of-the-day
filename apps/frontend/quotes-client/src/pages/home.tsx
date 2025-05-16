@@ -1,17 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Grid, Typography, Button, Input } from '@mui/material';
-import { useFetchQuotes } from '../hooks/use-fetch-quotes';
+import { usePaginatedQuotes } from '../hooks/use-paginated-quotes';
 import { QuoteCard } from '../ui/quote-card';
 
 export const Home = () => {
-  const [rawQuotesCount, setRawQuotesCount] = useState(50);
-  const [quotesCount, setQuotesCount] = useState(rawQuotesCount);
+  const [quotesCount, setQuotesCount] = useState(12);
+  const [paginationCount, setPaginationCount] = useState(quotesCount);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
-  const { quotes, loading, error } = useFetchQuotes({
-    count: quotesCount,
-    page: 1,
-    pageSize: 25,
-  });
+  const {
+    items: quotes,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    reset
+  } = usePaginatedQuotes({ count: paginationCount });
+  
+  useEffect(() => {
+    // Don't set up observer if there are no more quotes
+    if (!hasMore || !loadMoreTriggerRef.current) {
+      console.log('No more quotes or no ref - not setting up observer');
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMore();
+        }
+      },
+      {
+        rootMargin: '200px',
+        threshold: 0.1,
+      }
+    );
+
+    const currentRef = loadMoreTriggerRef.current;
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
+    };
+  }, [hasMore, loadMore]);
 
   return (
     <Box sx={{ my: 4, width: '100%' }}>
@@ -47,26 +78,36 @@ export const Home = () => {
         </Typography>
         <Input
           placeholder="Quotes count"
-          value={rawQuotesCount}
+          value={quotesCount}
           type="number"
           sx={{ maxWidth: 100 }}
           onChange={(e) => {
             const value = parseInt(e.target.value);
             if (!isNaN(value)) {
-              setRawQuotesCount(value);
+              setQuotesCount(value);
             }
           }}
           onBlur={(e) => {
             const value = parseInt(e.target.value);
             if (!isNaN(value)) {
+              // If the value is less than 1, set it to 1
               if (value < 1) {
                 setQuotesCount(1);
-                return;
+              }else{
+                setQuotesCount(value);
               }
-              setQuotesCount(value);
+         
             }
           }}
         />
+        <Button onClick={() => {
+          if(paginationCount !== quotesCount){
+            setPaginationCount(quotesCount);
+            reset();
+          }
+        }}>
+          Get Quotes
+        </Button>
       </Box>
       {/* Error Fetching */}
       {error && (
@@ -86,20 +127,22 @@ export const Home = () => {
       )}
 
       {/* Quotes grid */}
-      <Box sx={{ mb: 6 }}>
-        {loading ? (
-          <Typography variant="h6" textAlign="center">
-            Loading random quotes...
-          </Typography>
-        ) : (
-          <Grid container spacing={2}>
-            {quotes.map((quote) => (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={quote.id}>
-                <QuoteCard quote={quote} />
-              </Grid>
-            ))}
+      <Grid container spacing={2}>
+        {quotes.map((quote) => (
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={quote.id}>
+            <QuoteCard quote={quote} />
           </Grid>
+        ))}
+      </Grid>
+      <Box sx={{ mb: 6 }}>
+        {loading && (
+          <Typography textAlign="center" mt={2}>
+            Loading more...
+          </Typography>
         )}
+
+        {/* Load more trigger div */}
+        <Box ref={loadMoreTriggerRef} style={{ height: '1px' }} />
       </Box>
     </Box>
   );
