@@ -71,6 +71,9 @@ export class QuotesService {
     } catch (e: any) {
       const status = e?.response?.status;
       if ((status === 429 || status === 503) && retries < this.MAX_RETRIES) {
+        // Exponential backoff for rate limiting and server errors
+        // Retry after a delay
+        // The delay increases exponentially with each retry
         const delay = this.RETRY_DELAY * Math.pow(2, retries);
         await new Promise((r) => setTimeout(r, delay));
         return this.fetchQuotesWithRetry(page, perPage, retries + 1);
