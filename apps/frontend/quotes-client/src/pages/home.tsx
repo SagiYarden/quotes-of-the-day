@@ -14,9 +14,9 @@ export const Home = () => {
     error,
     hasMore,
     loadMore,
-    reset
+    reset,
   } = usePaginatedQuotes({ count: paginationCount });
-  
+
   useEffect(() => {
     // Don't set up observer if there are no more quotes
     if (!hasMore || !loadMoreTriggerRef.current) {
@@ -93,19 +93,20 @@ export const Home = () => {
               // If the value is less than 1, set it to 1
               if (value < 1) {
                 setQuotesCount(1);
-              }else{
+              } else {
                 setQuotesCount(value);
               }
-         
             }
           }}
         />
-        <Button onClick={() => {
-          if(paginationCount !== quotesCount){
-            setPaginationCount(quotesCount);
-            reset();
-          }
-        }}>
+        <Button
+          onClick={() => {
+            if (paginationCount !== quotesCount) {
+              setPaginationCount(quotesCount);
+              reset();
+            }
+          }}
+        >
           Get Quotes
         </Button>
       </Box>
