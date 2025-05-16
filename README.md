@@ -1,8 +1,21 @@
-# titan-qoutes
+# Titan-Quotes
 
-- Backend: NestJS microservice fetching random quotes from FavQs, with caching, pagination & retry logic
-- Frontend: React + MUI client that displays quotes in a responsive grid
-- Shared: libs/quotes-interfaces for common Quote types
+A full-stack application for browsing and discovering quotes with infinite scrolling and tag filtering capabilities.
+
+- **Backend**: NestJS microservice fetching quotes from FavQs API, with Redis caching, smart pagination & retry logic
+- **Frontend**: React + Material UI client that displays quotes in a responsive grid with infinite scrolling
+- **Shared**: TypeScript interfaces for common Quote types in a monorepo structure
+
+---
+
+## Features
+
+- 🔄 **Infinite scroll** - Load more quotes as you scroll down
+- 🏷️ **Tag filtering** - Filter quotes by specific tags
+- 📱 **Responsive design** - Works on mobile, tablet, and desktop
+- ⚡ **Performance optimized** - Backend caching and frontend optimizations
+- 🔁 **Retry logic** - Handles API rate limiting gracefully
+- 🎨 **Material UI** - Modern, clean user interface
 
 ---
 
@@ -66,7 +79,9 @@ Open your browser at the address shown (default is http://localhost:4200/ )
 
 ### 4. How to use
 
-Fetch random quotes via:
+#### API Endpoints
+
+#### Get Quotes:
 
 ```
 GET /quotes/list
@@ -85,8 +100,15 @@ http://localhost:3000/api/quotes/list?count=50&page=1&pageSize=10&tag=cool
 - count: total quotes you want overall
 - page: which page of pageSize to return
 - pageSize: how many quotes per “page” (max 50, validated by DTO)
-- tag: filter by specific tag (if not given it will provide random quotes)
+- tag: Filter by specific tag (optional)
 
 On the frontend, enter your desired count in the input box— infinite-scroll or paging can be built on top of this.
+
+### Frontend Usage
+
+1. Browse Random Quotes: Just open the app to see random quotes
+2. Filter by Tag: Enter a tag name in the filter input and click "Get Quotes"
+3. Adjust Quote Count: Change the number in the count input
+4. Infinite Scroll: Just keep scrolling down to load more quotes
 
 ---
