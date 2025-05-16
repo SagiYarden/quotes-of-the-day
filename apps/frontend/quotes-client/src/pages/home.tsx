@@ -9,7 +9,7 @@ export const Home = () => {
   const [filterTag, setFilterTag] = useState('');
   const [appliedFilterTag, setAppliedFilterTag] = useState('');
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
-  
+
   const {
     items: quotes,
     loading,
@@ -19,26 +19,25 @@ export const Home = () => {
     reset,
   } = usePaginatedQuotes({ count: paginationCount, tag: filterTag });
 
-    const handleGetQuotes = () => {
+  const handleGetQuotes = () => {
     let shouldReset = false;
-    
+
     // Reset when count changes
     if (paginationCount !== quotesCount && quotesCount > 0) {
       setPaginationCount(quotesCount);
       shouldReset = true;
     }
-    
+
     // Reset when tag changes (including when cleared)
     if (filterTag !== appliedFilterTag) {
       setAppliedFilterTag(filterTag);
       shouldReset = true;
     }
-    
+
     if (shouldReset) {
       reset();
     }
   };
-
 
   useEffect(() => {
     // Don't set up observer if there are no more quotes
@@ -59,7 +58,6 @@ export const Home = () => {
       }
     );
 
-    
     const currentRef = loadMoreTriggerRef.current;
     observer.observe(currentRef);
 
@@ -69,7 +67,7 @@ export const Home = () => {
   }, [hasMore, loadMore]);
 
   return (
-    <Box sx={{ width: '100%' }}> 
+    <Box sx={{ width: '100%' }}>
       <Box sx={{ textAlign: 'center', mb: 2 }}>
         <Typography
           variant="h3"
@@ -82,7 +80,7 @@ export const Home = () => {
         >
           Random Quotes
         </Typography>
-        <Typography variant="h6" color="text.secondary" >
+        <Typography variant="h6" color="text.secondary">
           Stay updated with the latest quotes.
         </Typography>
       </Box>
@@ -106,9 +104,9 @@ export const Home = () => {
           type="text"
           sx={{ maxWidth: 100 }}
           onChange={(e) => {
-           setFilterTag(e.target.value)
+            setFilterTag(e.target.value);
           }}
-        />      
+        />
       </Box>
 
       {/* Quotes Input */}
@@ -148,25 +146,22 @@ export const Home = () => {
             }
           }}
         />
- 
       </Box>
       <Box
-          sx={{
+        sx={{
           mb: 4,
           textAlign: 'center',
           display: 'flex',
           gap: 2,
           justifyContent: 'center',
           alignItems: 'center',
-        }}>
-         <Button
-          variant="contained"
-          onClick={handleGetQuotes}
-        >
+        }}
+      >
+        <Button variant="contained" onClick={handleGetQuotes}>
           Get Quotes
         </Button>
       </Box>
-            
+
       {/* Error Fetching */}
       {error && (
         <Box sx={{ mb: 4, textAlign: 'center' }}>
