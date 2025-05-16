@@ -77,21 +77,23 @@ Open your browser at the address shown (default is http://localhost:4200/ )
 Fetch random quotes via:
 
 ```
-GET /quotes/random-list
+GET /quotes/list
   ?count=<total-quotes-to-return>
   &page=<page-number>
   &pageSize=<quotes-per-page>
+  &tag=<single-tag>
 ```
 
 Example:
 
 ```
-http://localhost:3000/api/quotes/random-list?count=50&page=1&pageSize=10
+http://localhost:3000/api/quotes/list?count=50&page=1&pageSize=10&tag=cool
 ```
 
 - count: total quotes you want overall
 - page: which page of pageSize to return
 - pageSize: how many quotes per “page” (max 50, validated by DTO)
+- tag: filter by specific tag (if not given it will provide random quotes)
 
 On the frontend, enter your desired count in the input box— infinite-scroll or paging can be built on top of this.
 

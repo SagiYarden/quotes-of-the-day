@@ -6,8 +6,9 @@ import { QuoteCard } from '../ui/quote-card';
 export const Home = () => {
   const [quotesCount, setQuotesCount] = useState(12);
   const [paginationCount, setPaginationCount] = useState(quotesCount);
+  const [filterTag, setFilterTag] = useState('');
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
-
+  
   const {
     items: quotes,
     loading,
@@ -15,7 +16,7 @@ export const Home = () => {
     hasMore,
     loadMore,
     reset,
-  } = usePaginatedQuotes({ count: paginationCount });
+  } = usePaginatedQuotes({ count: paginationCount, tag: filterTag });
 
   useEffect(() => {
     // Don't set up observer if there are no more quotes
@@ -62,6 +63,31 @@ export const Home = () => {
         </Typography>
       </Box>
 
+      {/* Tag Input */}
+      <Box
+        sx={{
+          mb: 4,
+          textAlign: 'center',
+          display: 'flex',
+          gap: 2,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Typography variant="h6">
+          Which tag would you like to see quotes from?
+        </Typography>
+        <Input
+          placeholder="Filter Tag"
+          value={filterTag}
+          type="text"
+          sx={{ maxWidth: 100 }}
+          onChange={(e) => {
+           setFilterTag(e.target.value)
+          }}
+        />      
+      </Box>
+
       {/* Quotes Input */}
       <Box
         sx={{
@@ -99,10 +125,25 @@ export const Home = () => {
             }
           }}
         />
-        <Button
+ 
+      </Box>
+      <Box
+          sx={{
+          mb: 4,
+          textAlign: 'center',
+          display: 'flex',
+          gap: 2,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+         <Button
+          variant="contained"
           onClick={() => {
             if (paginationCount !== quotesCount && quotesCount > 0) {
               setPaginationCount(quotesCount);
+              reset();
+            }
+            if(filterTag !== '') {
               reset();
             }
           }}
@@ -110,6 +151,7 @@ export const Home = () => {
           Get Quotes
         </Button>
       </Box>
+            
       {/* Error Fetching */}
       {error && (
         <Box sx={{ mb: 4, textAlign: 'center' }}>
