@@ -1,4 +1,4 @@
-// v1.0.0
+// v1.0.1
 
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
