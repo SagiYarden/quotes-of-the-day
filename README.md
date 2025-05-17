@@ -2,6 +2,8 @@
 
 A full-stack application for browsing and discovering quotes with infinite scrolling and tag filtering capabilities.
 
+## 🚀 [Live Demo](https://quotes-of-the-day.onrender.com/)
+
 - **Backend**: NestJS microservice fetching quotes from FavQs API, with Redis caching, smart pagination & retry logic
 - **Frontend**: React + Material UI client that displays quotes in a responsive grid with infinite scrolling
 - **Shared**: TypeScript interfaces for common Quote types in a monorepo structure
